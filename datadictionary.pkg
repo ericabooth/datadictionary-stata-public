@@ -1,0 +1,26 @@
+v 3
+d datadictionary: enhanced, over-time-ready codebook generator for multi-wave data
+d
+d A modern descsave. datadictionary builds an Excel codebook that puts each
+d variable's statistics, % missing, distinct count, common values, labels, and
+d notes side by side (one row per variable, or per variable-wave over time),
+d including the srctag char written by combineall/projectbuilder. Results go to
+d the screen, a machine-readable .dta, and a multi-sheet workbook, with clickable
+d links to open them. For a study run in waves, files() / folder() stack a
+d per-wave row per variable and add a "changed" column flagging any variable
+d whose label or category set shifted since the previous wave (only detectable
+d from the original wave files, since stitching destroys per-wave value labels).
+d In-memory mode can also write a capture-guarded relabel do-file (dofile()) that
+d re-applies labels, formats, notes, and chars after a CSV/Excel round-trip
+d through another package, with a re-ingestion receipt, plus an optional infile
+d dictionary (dictionary()).
+d
+d Requires: Stata 16.0 or newer
+d
+d Author: Eric A. Booth, Sr Researcher, Texas 2036
+d Support: eric.a.booth@gmail.com
+d
+d Distribution-Date: 20260730
+d
+f datadictionary.ado
+f datadictionary.sthlp

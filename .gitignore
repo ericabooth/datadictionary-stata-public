@@ -1,0 +1,6 @@
+*.dta
+*.log
+*.smcl
+*.xlsx
+.DS_Store
+scratch/
