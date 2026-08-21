@@ -622,6 +622,7 @@ program define datadictionary, rclass
     * ---- clickable links to open the outputs and their folder --------------------------
     if `"`excel'`saving'`dofile'`dictionary'"' != "" {
         di as txt _n "Open:"
+        global DD_NLINK ""
         if `"`excel'"'      != "" _dd_link, path(`"`excel'"')      tag("codebook (Excel)")
         if `"`saving'"'     != "" _dd_link, path(`"`saving'"')     tag("codebook (.dta)")
         if `"`dofile'"'     != "" _dd_link, path(`"`dofile'"')     tag("relabel do-file")
@@ -657,8 +658,16 @@ program define _dd_link
         local sl = strrpos(`"`p'"', "/")
         if `sl' > 1 local p = substr(`"`p'"', 1, `sl' - 1)
     }
-    local q = char(34)
-    di as txt `"  {browse `q'`p'`q':`tag'}"'
+    * The link runs a command rather than handing a path to {browse}: SMCL
+    * gives a {browse} target to the platform URL parser, and on macOS that
+    * can abort Stata outright.  The OS opener also picks the right
+    * application for a .xlsx or a folder, which a browser does not.
+    * The path travels in a global so the directive itself carries no quote,
+    * space, or colon (a Windows path starts "C:", and a colon inside
+    * {stata ...} would split the command from its label).
+    global DD_NLINK = cond("$DD_NLINK" == "", 1, $DD_NLINK + 1)
+    global DD_OPEN${DD_NLINK} `"`p'"'
+    di as txt `"  {stata _dd_open ${DD_NLINK}:`tag'}"'
 end
 
 

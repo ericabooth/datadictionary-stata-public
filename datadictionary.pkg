@@ -23,4 +23,5 @@ d
 d Distribution-Date: 20260730
 d
 f datadictionary.ado
+f _dd_open.ado
 f datadictionary.sthlp
