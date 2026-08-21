@@ -1,42 +1,44 @@
 # datadictionary
 
-Build an Excel codebook that lets a researcher size up a dataset at a glance —
-a modern `descsave`.
+Build an Excel codebook that lets a researcher size up a dataset at a glance: a
+modern `descsave`.
 
 Point `datadictionary` at the data in memory and it writes one row per
 variable that puts the statistics, **% missing**, distinct count, common
 values, variable and value labels, and stored `notes` side by side in a
-`Variables` worksheet. Read one screen and you know each variable's type, how
-complete it is, what its codes mean, and what it typically holds — the
-meta-information you otherwise reconstruct by hand from `describe`, `summarize`,
-`codebook`, and `tab`. Everything goes to the screen, to a machine-readable
-`.dta`, and to the Excel workbook, and every value it reports (including the
-`srctag` char written by the author's `combineall`/`projectbuilder` tools) is
-one command away.
+`Variables` worksheet. On one screen you see each variable's type, how complete
+it is, what its codes mean, and what values are common in it. Assembling that by
+hand means running `describe`, `summarize`, `codebook`, and `tab` and holding the
+four outputs in your head at once. Everything goes to the screen, to a
+machine-readable `.dta`, and to the Excel workbook, including the `srctag`
+characteristic written by the companion `combineall` and `projectbuilder`
+tools.
 
 That works on any cross-sectional dataset. When a study runs in waves, point
 `datadictionary` at the wave files (`files()` or `folder()`) and it stacks a
 per-wave row for every variable and adds a `changed` column that flags a
 variable whose label was reworded or whose categories shifted since the
-previous wave — the signal that a variable may no longer mean the same thing.
+previous wave. That is the signal that a variable may have stopped meaning what
+it used to mean.
 Change detection needs the original wave files: stitching waves into one file
-destroys per-wave value labels (after `append` only one definition per label
-name survives), so run it before or alongside stitching to keep that history.
+destroys per-wave value labels, since after `append` only one definition per
+label name survives. Run it before or alongside stitching to keep that
+history.
 
 In-memory mode documents the dataset in memory (optionally restricted by
 `varlist`/`if`/`in`), and with `wave(varname)` adds a per-wave missingness
 grid for a stitched file. A variable that is all-missing within a wave is
-reported as `absent`, meaning *absent or never answered* — the two cannot be
-distinguished in a stitched file. The caller's data are preserved and
+reported as `absent`, meaning *absent or never answered*: a stitched file cannot
+tell the two apart. The caller's data are preserved and
 restored untouched in both modes. There are no dependencies beyond
 Stata 16.0.
 
-In-memory mode also writes a **relabel do-file** (`dofile()`) — the classic
-`descsave` idea — that re-applies every variable label, value label, format,
+In-memory mode also writes a **relabel do-file** (`dofile()`), the classic
+`descsave` idea, which re-applies every variable label, value label, format,
 storage type, note, and characteristic after a dataset has been round-tripped
 through CSV/Excel and another package (R, Python, a collaborator's
 spreadsheet). It is `capture`-guarded and prints a re-ingestion receipt, so a
-renamed or dropped column is skipped and reported rather than silently
+renamed or dropped column is skipped and reported, so nothing is silently
 mislabeled. An optional `dictionary()` writes a legacy `infile` dictionary
 (`.dct`) for a typed whitespace-delimited read.
 
@@ -85,7 +87,7 @@ the other outputs, and their containing folder.
 
 ### Round-tripping data through R, Python, or Excel
 
-A CSV or Excel file carries values but not the labels, formats, notes, and
+A CSV or Excel file holds the values but none of the labels, formats, notes, and
 characteristics Stata attaches to them. `dofile()` writes those as runnable
 code, so a dataset can leave Stata and come back fully re-dressed:
 
@@ -108,15 +110,15 @@ do staff_relabel
 The generated do-file sets `varabbrev off` and `capture`-prefixes every
 command, so a column the collaborator renamed or dropped is **skipped, not
 fuzzily relabeled**, and a *receipt* at the foot lists which expected variables
-went missing and which extra columns appeared. Export with `nolabel` (numeric
-codes) — exporting the text labels instead turns the column into a string the
-do-file cannot re-encode.
+went missing and which extra columns appeared. Export with `nolabel`, which
+writes numeric codes. If you export the text labels instead, the column comes
+back as a string and the do-file cannot re-encode it.
 
 The optional `dictionary()` writes a legacy free-format `infile` dictionary
-(`.dct`) that reads a **whitespace-delimited** export in one typed step. It
-carries storage type + variable label only (no value labels, notes, or chars),
-so the do-file is the complete tool; the dictionary is there for teams that
-want one:
+(`.dct`) that reads a **whitespace-delimited** export in one typed step. A
+`.dct` records storage type and variable label only, with no value labels,
+notes, or characteristics, so the do-file is the complete tool. The dictionary
+is there for teams that want one:
 
 ```stata
 export delimited using staff.txt, delimiter(tab) nolabel quote replace
@@ -124,10 +126,11 @@ infile using staff.dct, clear
 ```
 
 The Excel workbook contains an `Overview` sheet (sources, N and variable
-count per wave, generation date, notes count), a `Variables` sheet — **the
-codebook**: one row per variable (per variable-wave over time) with statistics,
-**% missing**, distinct count, common values, labels, and notes side by side —
-a `ValueLabels` sheet (label name, value, text), and, in files mode, a
+count per wave, generation date, notes count); a `Variables` sheet, **the
+codebook**, giving one row per variable (per variable-wave over time) with
+statistics, **% missing**, distinct count, common values, labels, and notes
+side by side; a `ValueLabels` sheet (label name, value, text); and, in files
+mode, a
 `Changes` sheet (one row per detected change: wave-pair, variable, change type,
 before, after). Header rows are bold.
 
@@ -135,8 +138,8 @@ There is **no separate Missingness sheet**: `% missing` is a column in the
 `Variables` codebook, so over time you read a variable's missingness down its
 wave rows. Over-time modes also add a **`changed`** column that flags any
 variable whose label was reworded or whose value-label categories shifted from
-the previous wave — a signal that the variable may no longer mean the same
-thing. (A stitched panel keeps only one label set per variable, so in-memory
+the previous wave. Treat that flag as a signal that the variable may have
+stopped meaning what it used to mean. (A stitched panel keeps only one label set per variable, so in-memory
 `wave()` mode leaves `changed` blank; run files mode over the original wave
 files to populate it.)
 
@@ -194,7 +197,7 @@ See `help datadictionary` for details on every option.
   `nolabel` (numeric codes); a column exported as its text labels comes back
   as a string it cannot re-encode.
 - `dictionary()` produces a free-format `infile` dictionary, which is
-  whitespace-delimited and carries storage type + variable label only; for a
+  whitespace-delimited and records storage type and variable label only; for a
   general comma-delimited CSV round-trip with labels, notes, and chars, use
   `dofile()`.
 

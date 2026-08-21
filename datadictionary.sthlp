@@ -137,7 +137,8 @@ it to a collaborator working in R, Python, or Excel, and when the edited file
 comes back, {help import_delimited:import delimited} it and {cmd:do} the
 generated file to restore everything Stata knew.  Each command is prefixed with
 {help capture}, and the file sets {cmd:varabbrev off}, so a column the
-collaborator renamed or dropped is skipped rather than fuzzily relabeled; a
+collaborator renamed or dropped is skipped instead of being fuzzily
+relabeled; a
 {it:receipt} at the foot of the file reports which expected variables were not
 found and which extra columns appeared.  {cmd:.do} is appended when no
 extension is given.  In-memory mode only.{p_end}
@@ -146,7 +147,7 @@ extension is given.  In-memory mode only.{p_end}
 {help infile} dictionary ({cmd:.dct}) giving each variable's storage type and
 variable label.  A dictionary is legacy and narrower than {cmd:dofile()}:
 free-format {help infile} is {it:whitespace}- (not comma-) delimited, and a
-dictionary carries storage type and variable label only (no value labels,
+dictionary records storage type and variable label only (no value labels,
 notes, or chars).  Prepare the data file with {cmd:export delimited},
 {cmd:delimiter(tab)} {cmd:nolabel} {cmd:quote} and read it back with
 {cmd:infile using} {it:filename}.  For a general comma-delimited CSV round-trip
@@ -190,7 +191,7 @@ descsave-style machine-readable product.  In-memory cross-sectional runs write
 these 17 columns, in this order: {cmd:name}, {cmd:type}, {cmd:format},
 {cmd:varlab}, {cmd:vallab}, {cmd:n}, {cmd:pctmiss}, {cmd:distinct}, {cmd:mean},
 {cmd:sd}, {cmd:min}, {cmd:p50}, {cmd:max}, {cmd:examples}, {cmd:notes},
-{cmd:srctag}, {cmd:chars}.  Each carries a variable label naming what it holds.
+{cmd:srctag}, {cmd:chars}.  Each one has a variable label naming its contents.
 Over-time modes ({cmd:wave()}, {cmd:files()}, {cmd:folder()}) prepend
 {cmd:wave} and {cmd:wavenum} - the leading order is {cmd:wave}, {cmd:name},
 {cmd:wavenum}, then {cmd:type} onward - and append {cmd:changed}, for 20 columns;
@@ -227,7 +228,9 @@ written by the author's {cmd:combineall}/{cmd:projectbuilder} tools) nor the
 {pstd}The default output is a compact formatted display: the per-variable
 codebook table (grouped by wave in over-time modes) and, in files mode, the
 list of detected changes.  When any output file is written, clickable links to
-open each file and its containing folder are printed at the end.
+open each file and its containing folder are printed at the end.  Clicking one
+asks your operating system to open that path with whatever application it
+normally uses, the same as double-clicking the file in Finder or Explorer.
 {cmd:excel(}{it:filename}{cmd:)} writes:{p_end}
 
 {p2colset 8 26 28 2}{...}
@@ -241,10 +244,10 @@ column and a {cmd:changed} flag (see below){p_end}
 {p2colreset}{...}
 
 {pstd}
-Missingness is not a separate sheet: the {cmd:% missing} column lives in the
+Missingness is not a separate sheet: you find the {cmd:% missing} column in the
 {cmd:Variables} codebook beside the statistics, and in over-time modes you read
-it down a variable's wave rows.  In {cmd:wave()} mode a variable that carries no
-data in a wave (dropped, or not yet fielded) shows 100% missing that wave.  In
+it down a variable's wave rows.  In {cmd:wave()} mode a variable with no data in
+a wave (dropped, or not yet fielded) shows 100% missing that wave.  In
 files mode a variable that is not in a wave's file has no row for that wave at
 all; the {cmd:Changes} sheet reports it as {cmd:variable added} or
 {cmd:variable dropped}.{p_end}
@@ -303,7 +306,7 @@ usual):{p_end}
 
 {pstd}An already-stitched panel (per-wave statistics and missingness; label
 changes are not detectable once stitched - use files mode for those).  Stack the
-same three waves, carry a wave identifier, and document the result:{p_end}
+same three waves, keep a wave identifier, and document the result:{p_end}
 
 {phang2}{cmd:. use staff_w1, clear}{p_end}
 {phang2}{cmd:. append using staff_w2 staff_w3, generate(src)}{p_end}
@@ -353,7 +356,7 @@ original wave files, before or alongside stitching, to keep that history.
 {bf:Not fielded or never answered.}  Missingness is reported as one number per
 codebook row, the {cmd:pctmiss} column ({cmd:miss%} on screen), and not as a
 separate grid or sheet.  A variable that is all-missing within a wave reads
-{cmd:100} there.  In a stitched file that 100 carries two meanings which cannot
+{cmd:100} there.  In a stitched file that 100 has two meanings which cannot
 be told apart: a variable that was not fielded that wave, and one that was
 fielded but never answered.  In files mode the distinction does not arise,
 because a variable that is not in a wave's file gets no row for that wave; it
@@ -377,8 +380,8 @@ longest text runs 17 characters to a 5-point set whose longest runs 26 moves the
 format from {cmd:%17.0g} to {cmd:%26.0g}, and {cmd:datadictionary} reports
 {cmd:display format changed} for that variable in the same wave-pair as
 {cmd:value label set changed}.  Read the two rows together: a format change
-sitting beside a value-label change is usually that side effect rather than an
-independent edit to the format.
+reported beside a value-label change is usually that side effect, not an
+independent edit you made to the format.
 
 {pstd}
 {bf:Sample restriction.}  In-memory mode documents the selected subsample:
@@ -388,7 +391,8 @@ error 2000.
 
 {pstd}
 {bf:Round-tripping through other packages.}  {cmd:dofile()} exists because a
-CSV or Excel file carries values but not the metadata Stata attaches to them:
+CSV or Excel file holds the values but none of the metadata Stata attaches to
+them:
 export a labeled dataset and the labels, formats, notes, and characteristics
 stay behind.  The relabel do-file is that metadata written as runnable code, so
 a dataset can leave Stata for R, Python, or a collaborator's spreadsheet and
@@ -397,8 +401,8 @@ return fully re-dressed.  Two rules keep the round-trip honest.  Export with
 the {cmd:label values} lines in the do-file reattach; exporting the text labels
 instead turns the column into a string the do-file cannot re-encode.  And leave
 the {help capture} prefixes in place: they turn a renamed or dropped column
-into a skipped line and a receipt entry rather than a failed run, which is what
-lets the do-file survive a collaborator who reorganizes the file.
+into a skipped line and a receipt entry instead of a failed run, so the do-file
+still works after a collaborator reorganizes the file.
 
 
 {marker related}{...}
