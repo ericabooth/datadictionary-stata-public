@@ -14,7 +14,7 @@ program define datadictionary, rclass
         EXcel(string) SAVing(string) REPlace             ///
         DOfile(string) DICTionary(string) NORECast       ///
         EXAMples(integer 3) TOP(integer 5)               ///
-        NOCHars NONotes ]
+        NOCHars NONotes FLOW(string) ]
 
     * ---- option validation ---------------------------------------------------
     if `examples' < 1 {
@@ -96,6 +96,14 @@ program define datadictionary, rclass
                 di as err `"dictionary `dictionary' already exists; specify the replace option"'
                 exit 602
             }
+        }
+    }
+
+    if `"`flow'"' != "" {
+        capture confirm file `"`flow'"'
+        if _rc {
+            di as err `"flow file `flow' not found"'
+            exit 601
         }
     }
 
@@ -428,6 +436,13 @@ program define datadictionary, rclass
     quietly replace changed = "" if changed == "."
     quietly save `MAIN', replace
 
+    * ---- flow(): append surveymap's pct_answered_sm and skipped_by_sm to the
+    * ---- codebook rows, matched on variable name.  Applied to `MAIN' here so
+    * ---- both the Variables sheet and the saving() dataset carry the columns.
+    if `"`flow'"' != "" {
+        _dd_flow, flow(`"`flow'"') main(`"`MAIN'"')
+    }
+
     * ---- display ---------------------------------------------------------------------
     local overtime = (`nw' > 0)
     di as txt _n "datadictionary 1.0.0"
@@ -668,6 +683,61 @@ program define _dd_link
     global DD_NLINK = cond("$DD_NLINK" == "", 1, $DD_NLINK + 1)
     global DD_OPEN${DD_NLINK} `"`p'"'
     di as txt `"  {stata _dd_open ${DD_NLINK}:`tag'}"'
+end
+
+
+* ---------------------------------------------------------------------------
+* _dd_flow: merge the item rows of a surveymap journal into the codebook
+* tempfile, adding pct_answered_sm (percent of respondents in scope who
+* answered the item) and skipped_by_sm (the skip logic that routes
+* respondents around it, e.g. "voted==0").  The journal is a tab-separated
+* file read by column name; it must carry class, var, pct_answered, and
+* gated_by columns or the command stops with error 459.  Codebook rows keep
+* their order and their key column "name"; unmatched codebook rows get
+* missing/empty values; journal items absent from the codebook are dropped
+* and counted in one note line.  The _sm suffix keeps the new columns clear
+* of the codebook's own.  Runs on scratch data; callers reload `MAIN' after.
+* ---------------------------------------------------------------------------
+program define _dd_flow
+    version 16.0
+    syntax , FLOW(string) MAIN(string)
+
+    quietly import delimited `"`flow'"', delimiter(tab) varnames(1) ///
+        stringcols(_all) clear
+    foreach c in class var pct_answered gated_by {
+        capture confirm variable `c'
+        if _rc {
+            di as err `"flow(): `flow' is not a surveymap journal (no `c' column)"'
+            exit 459
+        }
+    }
+    quietly keep if class == "item"
+    quietly gen name = var
+    quietly gen double pct_answered_sm = real(pct_answered)
+    quietly gen skipped_by_sm = gated_by
+    quietly replace skipped_by_sm = "" if skipped_by_sm == "."
+    quietly keep name pct_answered_sm skipped_by_sm
+    quietly duplicates drop name, force
+    tempfile FJ
+    quietly save `FJ'
+
+    quietly use `"`main'"', clear
+    quietly gen long _seq = _n
+    quietly merge m:1 name using `FJ'
+    quietly count if _merge == 2
+    local nun = r(N)
+    quietly drop if _merge == 2
+    quietly drop _merge
+    sort _seq
+    quietly drop _seq
+    label variable pct_answered_sm "% answered (surveymap journal)"
+    label variable skipped_by_sm   "routed around by (surveymap journal)"
+    order pct_answered_sm skipped_by_sm, last
+    quietly save `"`main'"', replace
+    if `nun' > 0 {
+        di as txt "flow(): " as res `nun' as txt ///
+            " journal item(s) have no codebook row and were skipped"
+    }
 end
 
 

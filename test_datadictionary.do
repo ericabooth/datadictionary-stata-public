@@ -9,14 +9,15 @@
 * (covered by .gitignore); every .dta goes to a temp directory, never the
 * repo folder.
 * ===========================================================================
-global pkgroot "/Users/ebooth/Documents/GitHub/Book Manuscript:Applied Evaluation-Stata/datadictionary-stata-public"
+global pkgroot "/Users/ebooth/Documents/GitHub/datadictionary-stata-public"
 global ddout   "$pkgroot"
 
 version 16.0
 clear all
 set more off
 set seed 20260714
-adopath + "$pkgroot"
+* prepend, so the repo version under test beats any installed copy
+adopath ++ "$pkgroot"
 
 * temp directory for the synthetic wave files and all .dta outputs
 global ddtmp "`c(tmpdir)'"
@@ -409,6 +410,88 @@ assert vallab == "origin" if name == "foreign"
 assert strpos(examples, "Domestic") if name == "foreign"
 import excel using "$ddtmp/dd_auto.xlsx", describe
 assert r(N_worksheet) == 3
+
+* ---------------------------------------------------------------------------
+* 3d. flow(): the surveymap journal bridge.  A tiny fake survey plus a
+*     hand-written journal TSV; the codebook gains pct_answered_sm and
+*     skipped_by_sm, matched on name, appended at the end of the Variables
+*     sheet and the saving() dataset.  A non-journal file is error 459, and
+*     a run without flow() carries no trace of the bridge.
+* ---------------------------------------------------------------------------
+clear
+set obs 40
+gen byte consent = cond(_n <= 36, 1, 0)
+label variable consent "Consented to interview"
+gen byte rating = runiformint(1, 5) if consent == 1
+label variable rating "Service rating (1-5)"
+gen byte followup = runiformint(0, 1) if consent == 1 & rating <= 2
+label variable followup "Wants follow-up call"
+tempfile flowdat
+quietly save `flowdat'
+
+* a minimal surveymap journal: read by column name, so these four columns
+* are the whole contract (class var pct_answered gated_by); ghostvar has no
+* codebook row and must be skipped, not merged
+tempname jh
+file open `jh' using "$ddtmp/sm_journal.tsv", write text replace
+file write `jh' "class" _tab "var" _tab "pct_answered" _tab "gated_by" _n
+file write `jh' "survey" _tab "." _tab "." _tab "." _n
+file write `jh' "item" _tab "consent" _tab "100.0" _tab "." _n
+file write `jh' "item" _tab "rating" _tab "90.0" _tab "." _n
+file write `jh' "item" _tab "followup" _tab "22.5" _tab "consent==0" _n
+file write `jh' "item" _tab "ghostvar" _tab "55.0" _tab "." _n
+file close `jh'
+
+use `flowdat', clear
+datadictionary, excel("$ddtmp/dd_flow.xlsx") flow("$ddtmp/sm_journal.tsv") ///
+    saving("$ddtmp/dd_flow.dta") replace
+* the caller's data came back untouched
+assert _N == 40
+assert c(k) == 3
+
+* saving() dataset: the two columns exist, sit last, and carry the journal's
+* values; a codebook variable absent from the journal would be missing/empty
+use "$ddtmp/dd_flow.dta", clear
+assert _N == 3
+confirm variable pct_answered_sm skipped_by_sm
+unab flowv : _all
+local kf : word count `flowv'
+assert "`: word `kf' of `flowv''" == "skipped_by_sm"
+assert "`: word `= `kf' - 1' of `flowv''" == "pct_answered_sm"
+assert pct_answered_sm == 22.5 if name == "followup"
+assert skipped_by_sm == "consent==0" if name == "followup"
+assert pct_answered_sm == 90 if name == "rating"
+assert skipped_by_sm == "" if name == "rating"
+assert pct_answered_sm == 100 if name == "consent"
+quietly count if name == "ghostvar"
+assert r(N) == 0
+
+* Variables sheet: same columns, at the end
+import excel using "$ddtmp/dd_flow.xlsx", sheet("Variables") firstrow clear
+assert _N == 3
+unab flowx : _all
+local kx : word count `flowx'
+assert "`: word `kx' of `flowx''" == "skipped_by_sm"
+assert "`: word `= `kx' - 1' of `flowx''" == "pct_answered_sm"
+assert pct_answered_sm == 22.5 if name == "followup"
+
+* a file that is not a surveymap journal -> 459 (w1.csv exists from 3b)
+use `flowdat', clear
+capture datadictionary, flow("$ddtmp/w1.csv")
+assert _rc == 459
+* a flow file that does not exist -> 601
+capture datadictionary, flow("$ddtmp/no_such_journal.tsv")
+assert _rc == 601
+
+* without flow() the codebook is exactly as before: 17 columns, no _sm pair
+use `flowdat', clear
+datadictionary, saving("$ddtmp/dd_noflow.dta") replace
+use "$ddtmp/dd_noflow.dta", clear
+assert c(k) == 17
+capture confirm variable pct_answered_sm
+assert _rc != 0
+capture confirm variable skipped_by_sm
+assert _rc != 0
 
 * ---------------------------------------------------------------------------
 * 4. Edge cases: graceful errors and label-free data

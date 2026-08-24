@@ -26,19 +26,21 @@
 {cmd:wave(}{varname}{cmd:)}
 {cmd:dofile(}{it:filename}{cmd:)}
 {cmd:dictionary(}{it:filename}{cmd:)}
-{cmd:norecast} {it:shared_options}]
+{cmd:norecast}
+{cmd:flow(}{it:filename}{cmd:)} {it:shared_options}]
 
 {pstd}Files mode (documents a set of wave files and detects changes across
 waves):{p_end}
 
 {p 8 16 2}
 {cmd:datadictionary}{cmd:,} {cmd:files(}{it:"w1.dta w2.dta ..."}{cmd:)}
-[{cmd:wavenames(}{it:"name1 name2 ..."}{cmd:)} {it:shared_options}]
+[{cmd:wavenames(}{it:"name1 name2 ..."}{cmd:)}
+{cmd:flow(}{it:filename}{cmd:)} {it:shared_options}]
 
 {p 8 16 2}
 {cmd:datadictionary}{cmd:,} {cmd:folder(}{it:dirpath}{cmd:)}
 [{cmd:pattern(}{it:str}{cmd:)} {cmd:wavenames(}{it:"name1 name2 ..."}{cmd:)}
-{it:shared_options}]
+{cmd:flow(}{it:filename}{cmd:)} {it:shared_options}]
 
 {synoptset 24 tabbed}{...}
 {synopthdr}
@@ -58,6 +60,7 @@ waves):{p_end}
 {syntab :Shared}
 {synopt :{opth ex:cel(filename)}}write a multi-sheet .xlsx codebook{p_end}
 {synopt :{opth sav:ing(filename)}}save the codebook itself as a .dta, one row per variable (per variable-wave in over-time modes){p_end}
+{synopt :{opt flow(filename)}}append {cmd:pct_answered_sm} and {cmd:skipped_by_sm} from a {cmd:surveymap} journal, matched on variable name{p_end}
 {synopt :{opt rep:lace}}overwrite existing {cmd:excel()} and {cmd:saving()} files{p_end}
 {synopt :{opt exam:ples(#)}}distinct example values shown for string variables; default {cmd:examples(3)}{p_end}
 {synopt :{opt top(#)}}top categories by frequency shown for value-labeled variables; default {cmd:top(5)}{p_end}
@@ -202,6 +205,20 @@ its headers: {cmd:distinct} prints as {cmd:dist} and {cmd:pctmiss} prints as
 is no {cmd:ndistinct}).  {cmd:.dta} is appended when no extension is
 given.{p_end}
 
+{phang}{cmd:flow(}{it:filename}{cmd:)} reads a journal written by the
+author's {cmd:surveymap} package (a tab-separated file, one row per survey
+event) and appends two columns to the codebook rows, matched on variable
+name: {cmd:pct_answered_sm}, the percent of respondents in scope who answered
+the item, and {cmd:skipped_by_sm}, the skip logic that routes respondents
+around the item (for example {cmd:voted==0}; empty for an item every
+respondent is asked).  The columns are appended at the end of the
+{cmd:Variables} sheet and of the {cmd:saving()} dataset; the {cmd:_sm} suffix
+keeps them clear of the codebook's own column names.  Codebook variables
+absent from the journal get missing/empty values.  Journal items absent from
+the codebook are skipped and counted in one note line.  A file that is not a
+surveymap journal stops the command with error 459.  Works in every
+mode.{p_end}
+
 {phang}{cmd:replace} permits overwriting; without it an existing
 {cmd:excel()} or {cmd:saving()} file stops the command with error 602.{p_end}
 
@@ -339,6 +356,13 @@ see what did not line up:{p_end}
 
 {phang2}{cmd:. export delimited using staff.txt, delimiter(tab) nolabel quote replace}{p_end}
 {phang2}{cmd:. infile using staff.dct, clear}{p_end}
+
+{pstd}Attach survey flow to the codebook.  {cmd:survey_journal.tsv} was
+written by the author's {cmd:surveymap} package over the same dataset; each
+codebook row gains the item's percent answered and its skip-logic
+summary:{p_end}
+
+{phang2}{cmd:. datadictionary, excel(survey_codebook) flow(survey_journal.tsv) replace}{p_end}
 
 
 {marker remarks}{...}
