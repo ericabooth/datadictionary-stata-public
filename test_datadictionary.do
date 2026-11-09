@@ -1,16 +1,37 @@
 * ===========================================================================
-* test_datadictionary.do -- test battery for datadictionary v1.0.1
-* Run in batch from the package directory:
-*     stata-mp -b do test_datadictionary.do
+* test_datadictionary.do -- test battery for datadictionary v1.0.2
+* Run in batch:
+*     stata-mp -b do test_datadictionary.do ["/path/to/pkg" ["/out/dir"]]
+*   arg 1: folder holding datadictionary.ado (default: the working directory
+*          when it holds datadictionary.ado, else found on the adopath)
+*   arg 2: folder for the Excel outputs (default: the package folder)
 * Judge the run by the log: no r(NNN) errors, no "assertion is false".
 * ---------------------------------------------------------------------------
-* All paths live in globals set in this header (the package will move to its
-* own repo; edit $pkgroot only).  Excel outputs land in the package folder
-* (covered by .gitignore); every .dta goes to a temp directory, never the
-* repo folder.
+* All paths live in globals set in this header.  Excel outputs land in the
+* package folder unless arg 2 is given (*.xlsx is covered by .gitignore);
+* every .dta goes to a temp directory, never the repo folder.
 * ===========================================================================
-global pkgroot "/Users/ebooth/Documents/GitHub/datadictionary-stata-public"
-global ddout   "$pkgroot"
+global pkgroot ""
+if `"`1'"' != "" global pkgroot `"`1'"'
+if `"$pkgroot"' == "" {
+    capture confirm file "`c(pwd)'/datadictionary.ado"
+    if !_rc global pkgroot `"`c(pwd)'"'
+}
+if `"$pkgroot"' == "" {
+    capture findfile datadictionary.ado
+    if !_rc {
+        local fp `"`r(fn)'"'
+        local s = max(strrpos(`"`fp'"', "/"), strrpos(`"`fp'"', "\"))
+        if `s' > 1 global pkgroot = substr(`"`fp'"', 1, `s' - 1)
+    }
+}
+if `"$pkgroot"' == "" {
+    di as err "test_datadictionary: cannot locate datadictionary.ado; pass its folder as argument 1"
+    exit 601
+}
+confirm file "$pkgroot/datadictionary.ado"
+global ddout "$pkgroot"
+if `"`2'"' != "" global ddout `"`2'"'
 
 version 16.0
 clear all
@@ -603,6 +624,74 @@ datadictionary txt, saving("$ddtmp/dd_tick.dta") replace
 use "$ddtmp/dd_tick.dta", clear
 assert examples == "it" + char(96) + "s fine, plain"
 macro drop USD
+
+* ---------------------------------------------------------------------------
+* 4c. 1.0.2 fixes: char[source] fills the srctag column; the relabel recipe
+*     keeps multi-line text in one row; an empty dataset gets its own
+*     message; open links expand ~ and keep \ paths absolute
+* ---------------------------------------------------------------------------
+sysuse auto, clear
+keep price mpg
+char price[source] "EPA extract 2026"
+char price[source_vintage] "2026-07"
+char mpg[srctag] "legacy tag"
+datadictionary, saving("$ddtmp/dd_source.dta") replace
+use "$ddtmp/dd_source.dta", clear
+assert srctag == "EPA extract 2026" if name == "price"
+assert chars == "source_vintage=2026-07" if name == "price"
+assert srctag == "legacy tag" if name == "mpg"
+assert chars == "" if name == "mpg"
+
+* the documented round trip keeps a value with a line break in one row
+clear
+set obs 3
+gen id = _n
+gen str40 comment = "plain"
+replace comment = "line one" + char(10) + "line two" in 2
+datadictionary, dofile("$ddtmp/rt_relabel.do") replace
+export delimited using "$ddtmp/rt_share.csv", nolabel quote replace
+import delimited using "$ddtmp/rt_share.csv", varnames(1) case(preserve) bindquote(strict) clear
+assert _N == 3
+assert comment[2] == "line one" + char(10) + "line two"
+do "$ddtmp/rt_relabel.do"
+tempname rh
+local hits 0
+file open `rh' using "$ddtmp/rt_relabel.do", read text
+file read `rh' line
+while r(eof) == 0 {
+    if strpos(`"`macval(line)'"', "bindquote(strict)") local ++hits
+    if strpos(`"`macval(line)'"', "nolabel quote replace") local ++hits
+    file read `rh' line
+}
+file close `rh'
+assert `hits' >= 2
+
+* variables but 0 observations: error 2000 with its own message
+clear
+set obs 0
+gen x = .
+gen str5 s = ""
+capture noisily datadictionary
+assert _rc == 2000
+
+* open links: ~ expands from HOME; a C:\ path keeps its drive and folder
+discard
+capture program drop datadictionary
+quietly run "$pkgroot/datadictionary.ado"
+local hm : environment HOME
+if "`c(os)'" != "Windows" & `"`hm'"' != "" {
+    global DD_NLINK
+    _dd_link, path("~/dd_tilde.xlsx") tag("open")
+    assert `"$DD_OPEN1"' == `"`hm'/dd_tilde.xlsx"'
+    _dd_link, path("~/dd_tilde.xlsx") tag("folder") folder
+    assert `"$DD_OPEN2"' == `"`hm'"'
+    _dd_link, path("C:\data\w1.xlsx") tag("folder") folder
+    assert `"$DD_OPEN3"' == "C:\data"
+    _dd_link, path("\\server\share\w1.xlsx") tag("open")
+    assert `"$DD_OPEN4"' == "\\server\share\w1.xlsx"
+    macro drop DD_*
+}
+discard
 
 * ---------------------------------------------------------------------------
 * 5. Summary block: the key numbers for the book's worked example

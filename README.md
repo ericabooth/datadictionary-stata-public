@@ -10,9 +10,9 @@ values, variable and value labels, and stored `notes` side by side in a
 it is, what its codes mean, and what values are common in it. Assembling that by
 hand means running `describe`, `summarize`, `codebook`, and `tab` and holding the
 four outputs in your head at once. Everything goes to the screen, to a
-machine-readable `.dta`, and to the Excel workbook, including the `srctag`
-characteristic written by the companion `combineall` and `projectbuilder`
-tools.
+machine-readable `.dta`, and to the Excel workbook, including the
+`char varname[source]` provenance stamp written by the companion `srctag`,
+`combineall`, and `projectbuilder` tools (shown in the `srctag` column).
 
 That works on any cross-sectional dataset. When a study runs in waves, point
 `datadictionary` at the wave files (`files()` or `folder()`) and it stacks a
@@ -26,10 +26,10 @@ label name survives. Run it before or alongside stitching to keep that
 history.
 
 In-memory mode documents the dataset in memory (optionally restricted by
-`varlist`/`if`/`in`), and with `wave(varname)` adds a per-wave missingness
-grid for a stitched file. A variable that is all-missing within a wave is
-reported as `absent`, meaning *absent or never answered*: a stitched file cannot
-tell the two apart. The caller's data are preserved and
+`varlist`/`if`/`in`), and with `wave(varname)` documents a stitched file with
+one codebook row per variable per wave. A variable that is all-missing within a
+wave shows `pctmiss` 100 for that wave, meaning *absent or never answered*: a
+stitched file cannot tell the two apart. The caller's data are preserved and
 restored untouched in both modes. There are no dependencies beyond
 Stata 16.0.
 
@@ -96,14 +96,15 @@ code, so a dataset can leave Stata and come back fully re-dressed:
 use staff_w1, clear
 datadictionary, excel(staff_codebook) dofile(staff_relabel) replace
 
-* 2. export the NUMERIC CODES (nolabel) so value labels reattach cleanly,
-*    then share staff.csv + staff_codebook.xlsx with a collaborator
-export delimited using staff.csv, nolabel replace
+* 2. export the NUMERIC CODES (nolabel) so value labels reattach cleanly, and
+*    quote text so a value with a line break stays in one row; then share
+*    staff.csv + staff_codebook.xlsx with a collaborator
+export delimited using staff.csv, nolabel quote replace
 
 * 3. ...collaborator edits staff.csv in R / Python / Excel and returns it...
 
 * 4. re-import and restore every label, format, note, and characteristic
-import delimited using staff.csv, varnames(1) case(preserve) clear
+import delimited using staff.csv, varnames(1) case(preserve) bindquote(strict) clear
 do staff_relabel
 ```
 
@@ -112,7 +113,9 @@ command, so a column the collaborator renamed or dropped is **skipped, not
 fuzzily relabeled**, and a *receipt* at the foot lists which expected variables
 went missing and which extra columns appeared. Export with `nolabel`, which
 writes numeric codes. If you export the text labels instead, the column comes
-back as a string and the do-file cannot re-encode it.
+back as a string and the do-file cannot re-encode it. Export with `quote` and
+import with `bindquote(strict)`: without them a free-text value that holds a
+line break comes back split across extra rows.
 
 The optional `dictionary()` writes a legacy free-format `infile` dictionary
 (`.dct`) that reads a **whitespace-delimited** export in one typed step. A
@@ -152,10 +155,22 @@ files mode: datadictionary, files("w1.dta w2.dta ...") [wavenames("n1 n2 ...") s
             datadictionary, folder(dirpath) [pattern(str) wavenames("n1 n2 ...") shared_options]
 
 shared_options: excel(filename) saving(filename) replace
-                examples(#) top(#) nochars nonotes
+                examples(#) top(#) nochars nonotes flow(filename)
 
 in-memory only: dofile(filename) dictionary(filename) norecast
 ```
+
+`excel()` and `examples()` share the stem `ex`: `ex()` is `excel()`, and
+`examples()` must be spelled `exam()` or longer.
+
+`flow(filename)` reads a journal written by the companion `surveymap` package
+(a tab-separated file, one row per survey event) and appends two columns to the
+codebook rows, matched on variable name: `pct_answered_sm`, the percent of
+respondents in scope who answered the item, and `skipped_by_sm`, the skip logic
+that routes respondents around it (for example `voted==0`). Codebook variables
+absent from the journal get missing values; journal items absent from the
+codebook are counted in one note line. A file that is not a surveymap journal
+stops the command with error 459. It works in every mode.
 
 See `help datadictionary` for details on every option.
 
@@ -179,7 +194,7 @@ See `help datadictionary` for details on every option.
   patterns, example values, and the notes/chars/srctag harvest.
 - Kishor Das's `codebookout` (SSC) writes a one-dataset codebook to Excel;
   `datadictionary` adds the multi-wave file comparison and the multi-sheet workbook
-  (value labels, changes, missingness).
+  (value labels and changes, with % missing in the codebook sheet).
 - Built-in `codebook` prints a rich per-variable report but stores no
   machine-readable product; `datadictionary` writes one (`saving()`) plus the Excel
   workbook, and tracks how the file changes across waves.
@@ -193,6 +208,8 @@ See `help datadictionary` for details on every option.
   identical in every wave, so detection is unaffected.
 - Example values and top categories are truncated to 2,000 characters per
   cell.
+- A dataset with variables but 0 observations (an empty template) is refused
+  with error 2000; add one placeholder row to document it.
 - `dofile()` reattaches value labels only when the data was exported with
   `nolabel` (numeric codes); a column exported as its text labels comes back
   as a string it cannot re-encode.
@@ -203,6 +220,16 @@ See `help datadictionary` for details on every option.
 
 ## Changes
 
+- **1.0.2 (2026-11-09):** works when the temp folder path contains a space
+  (every call used to stop with `invalid 'dir'`, r(198)). The `srctag` column
+  now reads `char varname[source]`, the stamp that `srctag`, `combineall`, and
+  `projectbuilder` write; it used to read `char[srctag]`, which none of them
+  writes, so the column was always empty. The round-trip recipe (README, help,
+  and the header of every relabel do-file) exports with `quote` and imports
+  with `bindquote(strict)`, so text with line breaks keeps its rows. The
+  clickable open links expand a leading `~` and treat `\` paths as absolute,
+  and wave names and output basenames split on `\` as well as `/`. An empty
+  dataset is refused with its own message.
 - **1.0.1 (2026-11-09):** text from the data is carried verbatim. A `$` or a
   backtick in a variable label, value-label text, note, characteristic
   (including `srctag`), string example value, or string wave value used to be

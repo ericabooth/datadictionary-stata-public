@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 1.0.1  2026-11-09}{...}
+{* *! version 1.0.2  2026-11-09}{...}
 {viewerjumpto "Syntax" "datadictionary##syntax"}{...}
 {viewerjumpto "Description" "datadictionary##description"}{...}
 {viewerjumpto "Options" "datadictionary##options"}{...}
@@ -87,8 +87,9 @@ in files mode) holding the variable's name, storage type, display format,
 variable label, value-label name, N nonmissing, % missing, number of distinct
 values, numeric summary statistics (mean, sd, min, median, max; blank for
 strings), example values, stored {help notes}, and characteristics
-({help char}), including the {cmd:srctag} characteristic written by the
-author's {cmd:combineall}/{cmd:projectbuilder} tools.  Results are displayed
+({help char}), including the {cmd:char} {it:varname}{cmd:[source]} provenance
+stamp written by the author's {cmd:srctag}, {cmd:combineall}, and
+{cmd:projectbuilder} tools.  Results are displayed
 compactly in the Results window and can be written to a machine-readable
 .dta ({cmd:saving()}) and a multi-sheet Excel workbook ({cmd:excel()}).
 
@@ -132,12 +133,14 @@ original wave files to detect and flag those.{p_end}
 
 {phang}{cmd:dofile(}{it:filename}{cmd:)} writes a do-file that re-applies the
 current metadata - variable labels, value labels, display formats, storage
-types, {help notes}, and characteristics (including {cmd:srctag}) - to a
+types, {help notes}, and characteristics (including {cmd:char[source]}) - to a
 dataset after it has been exported to CSV/Excel and re-imported.  This is the
 portability tool: export the data with {help export_delimited:export delimited},
-{cmd:nolabel} (so value-labeled variables travel as their numeric codes), hand
+{cmd:nolabel} and {cmd:quote} (so value-labeled variables travel as their numeric
+codes and text with line breaks stays in one row), hand
 it to a collaborator working in R, Python, or Excel, and when the edited file
-comes back, {help import_delimited:import delimited} it and {cmd:do} the
+comes back, {help import_delimited:import delimited} it with
+{cmd:bindquote(strict)} and {cmd:do} the
 generated file to restore everything Stata knew.  Each command is prefixed with
 {help capture}, and the file sets {cmd:varabbrev off}, so a column the
 collaborator renamed or dropped is skipped instead of being fuzzily
@@ -183,9 +186,9 @@ the right wave order.{p_end}
 
 {phang}{cmd:wavenames(}{it:"n1 n2 ..."}{cmd:)} supplies display names for the
 waves (for example {cmd:wavenames("2019 2021 2023")}), one per file, used in
-the display, the {cmd:wave} column, the {cmd:Changes} wave-pairs, and the
-{cmd:Missingness} column headers.  The default is each file's basename
-without the extension.{p_end}
+the display, the {cmd:wave} column, and the {cmd:Changes} wave-pairs.  The
+default is each file's basename without the folder and extension (the folder
+may be separated by {cmd:/} or {cmd:\}).{p_end}
 
 {dlgtab:Shared}
 
@@ -236,8 +239,10 @@ reported for value-labeled variables, each as {it:label (n, pct%)}; the
 default is 5.{p_end}
 
 {phang}{cmd:nochars} skips characteristics entirely: neither the
-{cmd:srctag} column (harvested from {cmd:char} {it:varname}{cmd:[srctag]},
-written by the author's {cmd:combineall}/{cmd:projectbuilder} tools) nor the
+{cmd:srctag} column (harvested from {cmd:char} {it:varname}{cmd:[source]},
+the provenance stamp written by the author's {cmd:srctag}, {cmd:combineall},
+and {cmd:projectbuilder} tools; a variable with no {cmd:[source]} but a
+{cmd:[srctag]} characteristic shows that one) nor the
 {cmd:chars} column (all other characteristics, concatenated as
 {it:name=value} pairs) is filled.{p_end}
 
@@ -347,13 +352,13 @@ alongside the codebook:{p_end}
 share {cmd:staff.csv} plus {cmd:staff_codebook.xlsx}, and let a collaborator
 edit in R, Python, or Excel:{p_end}
 
-{phang2}{cmd:. export delimited using staff.csv, nolabel replace}{p_end}
+{phang2}{cmd:. export delimited using staff.csv, nolabel quote replace}{p_end}
 
 {pstd}When the edited file comes back, re-import it and run the relabel do-file
 to restore every label, format, note, and characteristic; read its receipt to
 see what did not line up:{p_end}
 
-{phang2}{cmd:. import delimited using staff.csv, varnames(1) case(preserve) clear}{p_end}
+{phang2}{cmd:. import delimited using staff.csv, varnames(1) case(preserve) bindquote(strict) clear}{p_end}
 {phang2}{cmd:. do staff_relabel}{p_end}
 
 {pstd}The optional dictionary reads a whitespace-delimited export in one typed
@@ -425,7 +430,8 @@ independent edit you made to the format.
 {bf:Sample restriction.}  In-memory mode documents the selected subsample:
 rows excluded by {cmd:if}/{cmd:in} do not contribute to N, missingness,
 statistics, or examples.  Selecting an empty sample stops the command with
-error 2000.
+error 2000, and so does a dataset with variables but 0 observations (an empty
+template file cannot be documented; add one placeholder row first).
 
 {pstd}
 {bf:Round-tripping through other packages.}  {cmd:dofile()} exists because a
@@ -434,10 +440,12 @@ them:
 export a labeled dataset and the labels, formats, notes, and characteristics
 stay behind.  The relabel do-file is that metadata written as runnable code, so
 a dataset can leave Stata for R, Python, or a collaborator's spreadsheet and
-return fully re-dressed.  Two rules keep the round-trip honest.  Export with
+return fully re-dressed.  Three rules keep the round-trip honest.  Export with
 {cmd:nolabel} so value-labeled variables travel as their numeric codes, which
 the {cmd:label values} lines in the do-file reattach; exporting the text labels
-instead turns the column into a string the do-file cannot re-encode.  And leave
+instead turns the column into a string the do-file cannot re-encode.  Export
+with {cmd:quote} and import with {cmd:bindquote(strict)}, or a text value that
+holds a line break (a free-text answer) comes back split across rows.  And leave
 the {help capture} prefixes in place: they turn a renamed or dropped column
 into a skipped line and a receipt entry instead of a failed run, so the do-file
 still works after a collaborator reorganizes the file.
