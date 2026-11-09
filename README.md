@@ -184,13 +184,13 @@ See `help datadictionary` for details on every option.
   machine-readable product; `datadictionary` writes one (`saving()`) plus the Excel
   workbook, and tracks how the file changes across waves.
 
-## Limitations in v1.0.0
+## Limitations in v1.0.x
 
 - Change detection compares consecutive waves; a variable that skips a wave
   is counted as dropped and then added.
-- Value-label text longer than 80 characters is truncated in the
-  `ValueLabels` sheet and in the change-detection signatures (a `uselabel`
-  limit); truncation is identical in every wave, so detection is unaffected.
+- Value-label text longer than 2,000 characters is truncated in the
+  `ValueLabels` sheet and in the change-detection signatures; truncation is
+  identical in every wave, so detection is unaffected.
 - Example values and top categories are truncated to 2,000 characters per
   cell.
 - `dofile()` reattaches value labels only when the data was exported with
@@ -200,6 +200,20 @@ See `help datadictionary` for details on every option.
   whitespace-delimited and records storage type and variable label only; for a
   general comma-delimited CSV round-trip with labels, notes, and chars, use
   `dofile()`.
+
+## Changes
+
+- **1.0.1 (2026-11-09):** text from the data is carried verbatim. A `$` or a
+  backtick in a variable label, value-label text, note, characteristic
+  (including `srctag`), string example value, or string wave value used to be
+  macro-expanded: `Price in $USD` became `Price in ` on screen, in
+  `saving()`, in the workbook, and in the `dofile()` relabel file (so running
+  that file overwrote a good label with the mangled one), and a backtick in a
+  string value stopped the command with r(132). The relabel do-file now
+  escapes `$` and backticks, writes value labels itself instead of copying
+  `label save` output, and restores notes through their characteristics,
+  because the `note` command expands its text a second time. Value labels are
+  read with `st_vlload` instead of `uselabel`, which expanded `$` the same way.
 
 ## License
 

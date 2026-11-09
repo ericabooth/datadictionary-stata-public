@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 1.0.0  2026-07-30}{...}
+{* *! version 1.0.1  2026-11-09}{...}
 {viewerjumpto "Syntax" "datadictionary##syntax"}{...}
 {viewerjumpto "Description" "datadictionary##description"}{...}
 {viewerjumpto "Options" "datadictionary##options"}{...}
@@ -143,8 +143,13 @@ generated file to restore everything Stata knew.  Each command is prefixed with
 collaborator renamed or dropped is skipped instead of being fuzzily
 relabeled; a
 {it:receipt} at the foot of the file reports which expected variables were not
-found and which extra columns appeared.  {cmd:.do} is appended when no
-extension is given.  In-memory mode only.{p_end}
+found and which extra columns appeared.  A {cmd:$} or a backtick in a label,
+note, or characteristic is written escaped ({cmd:\$}, {cmd:\`}), so running
+the file restores the text exactly instead of expanding it as a macro; notes
+are restored through their {cmd:note}{it:#} characteristics rather than the
+{cmd:note} command, which would expand the text a second time.
+{cmd:.do} is appended when no extension is given.  In-memory mode
+only.{p_end}
 
 {phang}{cmd:dictionary(}{it:filename}{cmd:)} writes a free-format
 {help infile} dictionary ({cmd:.dct}) giving each variable's storage type and
@@ -375,6 +380,15 @@ labels.  When wave files are appended, only one definition per value-label
 name survives, so a category set that was extended or relabeled between waves
 is no longer recoverable from the combined file.  Run {cmd:datadictionary} over the
 original wave files, before or alongside stitching, to keep that history.
+
+{pstd}
+{bf:Text is carried verbatim.}  Labels, value-label text, notes,
+characteristics, string example values, and string wave values that contain
+{cmd:$} or a backtick appear unchanged on screen, in {cmd:saving()}, in the
+workbook, and in {cmd:dofile()}.  (Version 1.0.0 expanded {cmd:$}{it:name} as
+a global, usually to nothing, and stopped with error 132 on a backtick in a
+string value.)  Stata's own {cmd:notes} listing still expands a {cmd:$} in a
+note when it displays it; the stored note is intact.
 
 {pstd}
 {bf:Not fielded or never answered.}  Missingness is reported as one number per

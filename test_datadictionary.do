@@ -1,5 +1,5 @@
 * ===========================================================================
-* test_datadictionary.do -- test battery for datadictionary v1.0.0
+* test_datadictionary.do -- test battery for datadictionary v1.0.1
 * Run in batch from the package directory:
 *     stata-mp -b do test_datadictionary.do
 * Judge the run by the log: no r(NNN) errors, no "assertion is false".
@@ -536,6 +536,73 @@ capture datadictionary, folder("$ddtmp") pattern("zzz*.dta")
 assert _rc == 601
 capture datadictionary, files("$ddtmp/does_not_exist.dta")
 assert _rc == 601
+
+* ---------------------------------------------------------------------------
+* 4b. $ and backticks in data text (1.0.1).  Labels, chars, notes, value-label
+*     text, and string values must reach the codebook, the screen, and the
+*     relabel do-file verbatim.  1.0.0 expanded $USD to "" (and wrote the
+*     mangled label into the do-file) and stopped with r(132) on a backtick.
+*     The texts are built with char() so this file never holds a live $ or `.
+* ---------------------------------------------------------------------------
+global USD "EXPANDED"                    // a live global the bug would leak
+local vlab   = "Price in " + char(36) + "USD"
+local ulab   = char(36) + "USD nominal"
+local ntxt   = "cost in " + char(36) + "USD, it" + char(96) + "s firm"
+local olab   = "Dom " + char(36) + "HOME"
+local oblab  = "For" + char(96) + "eign"
+sysuse auto, clear
+keep price foreign make
+label variable price `"`macval(vlab)'"'
+char price[unit] `"`macval(ulab)'"'
+char price[note1] `"`macval(ntxt)'"'
+char price[note0] "1"
+label define origin 0 `"`macval(olab)'"' 1 `"`macval(oblab)'"', modify
+replace make = "save " + char(36) + "HOME today" in 1
+replace make = "it" + char(96) + "s fine" in 2
+replace make = "a" in 3/l
+datadictionary, saving("$ddtmp/dd_macro.dta") dofile("$ddtmp/dd_macro_relabel.do") ///
+    examples(3) replace
+assert r(nvars) == 3
+tempfile macsrc
+quietly save `macsrc'
+use "$ddtmp/dd_macro.dta", clear
+assert varlab == "Price in " + char(36) + "USD" if name == "price"
+assert chars  == "unit=" + char(36) + "USD nominal" if name == "price"
+assert notes  == "1. cost in " + char(36) + "USD, it" + char(96) + "s firm" if name == "price"
+assert strpos(examples, "Dom " + char(36) + "HOME (") == 1 if name == "foreign"
+assert strpos(examples, "For" + char(96) + "eign (") > 0  if name == "foreign"
+assert strpos(examples, "save " + char(36) + "HOME today") > 0 if name == "make"
+assert strpos(examples, "it" + char(96) + "s fine") > 0      if name == "make"
+assert strpos(varlab + chars + notes + examples, "EXPANDED") == 0
+* the relabel do-file restores the same text onto a stripped copy
+use `macsrc', clear
+label variable price ""
+char price[unit]
+char price[note1]
+char price[note0]
+label drop origin
+do "$ddtmp/dd_macro_relabel.do"
+local got : variable label price
+assert `"`macval(got)'"' == `"`macval(vlab)'"'
+local got : char price[unit]
+assert `"`macval(got)'"' == `"`macval(ulab)'"'
+local got : char price[note1]
+assert `"`macval(got)'"' == `"`macval(ntxt)'"'
+local got : char price[note0]
+assert "`got'" == "1"
+local got : label origin 0
+assert `"`macval(got)'"' == `"`macval(olab)'"'
+local got : label origin 1
+assert `"`macval(got)'"' == `"`macval(oblab)'"'
+* a backtick in a string value alone used to stop the command with r(132)
+clear
+set obs 3
+gen str60 txt = "plain"
+replace txt = "it" + char(96) + "s fine" in 2
+datadictionary txt, saving("$ddtmp/dd_tick.dta") replace
+use "$ddtmp/dd_tick.dta", clear
+assert examples == "it" + char(96) + "s fine, plain"
+macro drop USD
 
 * ---------------------------------------------------------------------------
 * 5. Summary block: the key numbers for the book's worked example
