@@ -1,4 +1,4 @@
-*! version 1.0.2  09nov2026  Eric A. Booth, Sr Researcher, Texas 2036
+*! version 1.0.2  09nov2026  Eric A. Booth and Elizabeth Teas
 *! datadictionary: enhanced, over-time-ready codebook generator (a modern descsave)
 *! 1.0.1: labels, notes, chars, value-label text, and string values that
 *!        contain $ or a backtick are carried verbatim (macval) instead of

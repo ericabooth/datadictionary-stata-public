@@ -244,6 +244,6 @@ See `help datadictionary` for details on every option.
 
 ## License
 
-MIT. See [LICENSE](LICENSE). Copyright (c) 2026 Eric A. Booth.
+MIT. See [LICENSE](LICENSE). Copyright (c) 2026 Eric A. Booth and Elizabeth Teas.
 
 Support: eric.a.booth@gmail.com

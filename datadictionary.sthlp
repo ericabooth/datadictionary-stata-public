@@ -88,7 +88,7 @@ variable label, value-label name, N nonmissing, % missing, number of distinct
 values, numeric summary statistics (mean, sd, min, median, max; blank for
 strings), example values, stored {help notes}, and characteristics
 ({help char}), including the {cmd:char} {it:varname}{cmd:[source]} provenance
-stamp written by the author's {cmd:srctag}, {cmd:combineall}, and
+stamp written by the authors' {cmd:srctag}, {cmd:combineall}, and
 {cmd:projectbuilder} tools.  Results are displayed
 compactly in the Results window and can be written to a machine-readable
 .dta ({cmd:saving()}) and a multi-sheet Excel workbook ({cmd:excel()}).
@@ -214,7 +214,7 @@ is no {cmd:ndistinct}).  {cmd:.dta} is appended when no extension is
 given.{p_end}
 
 {phang}{cmd:flow(}{it:filename}{cmd:)} reads a journal written by the
-author's {cmd:surveymap} package (a tab-separated file, one row per survey
+{cmd:surveymap} package (a tab-separated file, one row per survey
 event) and appends two columns to the codebook rows, matched on variable
 name: {cmd:pct_answered_sm}, the percent of respondents in scope who answered
 the item, and {cmd:skipped_by_sm}, the skip logic that routes respondents
@@ -240,7 +240,7 @@ default is 5.{p_end}
 
 {phang}{cmd:nochars} skips characteristics entirely: neither the
 {cmd:srctag} column (harvested from {cmd:char} {it:varname}{cmd:[source]},
-the provenance stamp written by the author's {cmd:srctag}, {cmd:combineall},
+the provenance stamp written by the authors' {cmd:srctag}, {cmd:combineall},
 and {cmd:projectbuilder} tools; a variable with no {cmd:[source]} but a
 {cmd:[srctag]} characteristic shows that one) nor the
 {cmd:chars} column (all other characteristics, concatenated as
@@ -368,7 +368,7 @@ see what did not line up:{p_end}
 {phang2}{cmd:. infile using staff.dct, clear}{p_end}
 
 {pstd}Attach survey flow to the codebook.  {cmd:survey_journal.tsv} was
-written by the author's {cmd:surveymap} package over the same dataset; each
+written by the {cmd:surveymap} package over the same dataset; each
 codebook row gains the item's percent answered and its skip-logic
 summary:{p_end}
 
@@ -466,8 +466,11 @@ prints a rich per-variable report but stores no machine-readable product;
 tracks how the file changes across waves.
 
 
-{title:Author}
+{title:Authors}
 
 {pstd}
-Eric A. Booth, Sr Researcher, Texas 2036, 2026.
+Eric A. Booth, Sr Researcher, Texas 2036{break}
+Elizabeth Teas, Sr Research Scientist, Far Harbor, LLC{p_end}
+
+{pstd}
 Support: eric.a.booth@gmail.com.  MIT-licensed.
