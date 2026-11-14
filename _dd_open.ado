@@ -1,4 +1,4 @@
-*! version 1.0.1  21aug2026  Eric Booth
+*! version 1.0.1  21aug2026  Eric A. Booth
 *! _dd_open -- open one of the files datadictionary just wrote, using the
 *! operating system's own handler.  Called from the click-to-run links the
 *! command prints when it finishes.
